@@ -7,6 +7,8 @@ class Player
   def play_turn(warrior)
     if warrior.feel.wall?
       warrior.pivot!
+    elsif warrior.look[1].enemy?
+      warrior.shoot!
     elsif under_attack_and_in_bad_shape(warrior)
       warrior.walk!(:backward)
     elsif warrior.feel.captive?
