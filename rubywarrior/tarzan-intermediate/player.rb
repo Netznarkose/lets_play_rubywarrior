@@ -5,29 +5,45 @@ class Player
   end
 
   def play_turn(warrior)
-    if !damage?(warrior) && warrior.health < 20
+    if count_enemies(warrior) > 1
+      warrior.bind!(locate(:enemy, warrior))
+    elsif !damage?(warrior) && warrior.health < 20
       warrior.rest!
-    elsif enemy_present?(warrior)
-      warrior.attack!(locate_enemy(warrior))
+    elsif present?(:enemy, warrior)
+      warrior.attack!(locate(:enemy, warrior))
+    elsif present?(:captive, warrior)
+      warrior.rescue!(locate(:captive, warrior))
     else
       warrior.walk!(warrior.direction_of_stairs)
     end
     @health = warrior.health
   end
 
+  def count_enemies(warrior)
+    count = 0
+    [:forward, :left, :right, :backward].map do |direction|
+      count += 1 if warrior.feel(direction).enemy?
+    end
+    count
+  end
+
   def damage?(warrior)
     warrior.health < @health
   end
 
-  def enemy_present?(warrior)
+  def present?(who = :enemy, warrior)
     [:forward, :left, :right, :backward].any? do |direction|
-      warrior.feel(direction).enemy?
+      who == :enemy ? warrior.feel(direction).enemy? : warrior.feel(direction).captive?
     end
   end
 
-  def locate_enemy(warrior)
+  def locate(who = :enemy, warrior)
     [:forward, :left, :right, :backward].select do |direction|
-      return direction if warrior.feel(direction).enemy?
+      if who == :enemy
+        return direction if warrior.feel(direction).enemy?
+      else
+        return direction if warrior.feel(direction).captive?
+      end
     end
   end
 end
