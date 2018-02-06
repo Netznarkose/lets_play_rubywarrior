@@ -13,8 +13,10 @@ class Player
       warrior.attack!(locate(:enemy, warrior))
     elsif present?(:captive, warrior)
       warrior.rescue!(locate(:captive, warrior))
-    else
+    elsif warrior.listen.empty?
       warrior.walk!(warrior.direction_of_stairs)
+    else
+      warrior.walk!(warrior.direction_of(warrior.listen.first))
     end
     @health = warrior.health
   end
