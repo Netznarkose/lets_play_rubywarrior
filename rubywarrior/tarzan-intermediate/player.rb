@@ -1,13 +1,10 @@
 require 'pry-byebug'
 class Player
-  def initialize
-    @health = 20
-  end
 
   def play_turn(warrior)
     if count_enemies(warrior) > 1
       warrior.bind!(locate(:enemy, warrior))
-    elsif !damage?(warrior) && warrior.health < 20
+    elsif !present?(:enemy, warrior) && warrior.health < 20
       warrior.rest!
     elsif present?(:enemy, warrior)
       warrior.attack!(locate(:enemy, warrior))
@@ -16,9 +13,18 @@ class Player
     elsif warrior.listen.empty?
       warrior.walk!(warrior.direction_of_stairs)
     else
-      warrior.walk!(warrior.direction_of(warrior.listen.first))
+      if warrior.feel.stairs?
+        warrior.walk!(avoid_stairs(warrior))
+      else
+        warrior.walk!(warrior.direction_of(warrior.listen.first))
+      end
     end
-    @health = warrior.health
+  end
+
+  def avoid_stairs(warrior)
+    [:forward, :left, :right, :backward].find do |direction|
+      return direction if warrior.feel(direction).empty? && !warrior.feel(direction).stairs?
+    end
   end
 
   def count_enemies(warrior)
@@ -27,10 +33,6 @@ class Player
       count += 1 if warrior.feel(direction).enemy?
     end
     count
-  end
-
-  def damage?(warrior)
-    warrior.health < @health
   end
 
   def present?(who = :enemy, warrior)
