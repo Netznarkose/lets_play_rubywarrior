@@ -1,7 +1,9 @@
 require 'pry-byebug'
 class Player
   def play_turn(warrior)
-    if only_attack_enemies_which_block_rescues(warrior)
+    if count_enemies(warrior) > 1
+      warrior.bind!(locate_second_prioritized_enemies(warrior))
+    elsif only_attack_enemies_which_block_rescues(warrior)
       warrior.attack!(locate(:enemy, warrior))
     elsif only_rescue_captives_with_bombs(warrior)
       warrior.rescue!(locate(:captive, warrior))
@@ -17,6 +19,12 @@ class Player
       warrior.walk!(warrior.direction_of_stairs)
     else
       warrior.walk!(warrior.direction_of(warrior.listen.first))
+    end
+  end
+
+  def locate_second_prioritized_enemies(warrior)
+    [:forward, :left, :right, :backward].select do |direction|
+      return direction if warrior.feel(direction).enemy? && direction != direction_of_bomb(warrior)
     end
   end
 
