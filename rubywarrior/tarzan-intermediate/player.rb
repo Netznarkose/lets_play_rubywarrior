@@ -1,25 +1,52 @@
 require 'pry-byebug'
+require 'player_helper'
+include PlayerHelper
 class Player
+  def initialize
+    @turn_me = 0
+  end
   def play_turn(warrior)
-    if count_enemies(warrior) > 1
-      warrior.bind!(locate_second_prioritized_enemies(warrior))
-    elsif only_attack_enemies_which_block_rescues(warrior)
-      warrior.attack!(locate(:enemy, warrior))
-    elsif only_rescue_captives_with_bombs(warrior)
-      warrior.rescue!(locate(:captive, warrior))
-    elsif ticking?(warrior)
-      warrior.walk!(direction_of_bomb(warrior))
-    elsif !present?(:enemy, warrior) && warrior.health < 20
+    case @turn_me
+    when 0
+      warrior.bind!(:left)
+    when 1
+      warrior.bind!(:right)
+    when 2, 3
+      warrior.detonate!(:forward)
+    when 4, 5, 6, 7, 8
       warrior.rest!
-    elsif present?(:enemy, warrior)
-      warrior.attack!(locate(:enemy, warrior))
-    elsif present?(:captive, warrior)
-      warrior.rescue!(locate(:captive, warrior))
-    elsif warrior.listen.empty?
-      warrior.walk!(warrior.direction_of_stairs)
-    else
-      warrior.walk!(warrior.direction_of(warrior.listen.first))
+    when 9
+      warrior.walk!(:forward)
+    when 10
+      warrior.bind!(:left)
+    when 11
+      warrior.bind!(:right)
+    when 12
+      warrior.attack!(:forward)
+    # when 7, 8
+    #   warrior.detonate!(:left)
+    # when 9
+    #   warrior.walk!(:left)
+    # when 10
+    #   warrior.attack!(:forward)
+    # when 11
+    #   warrior.walk!(:forward)
+    # when 12
+    #   warrior.rescue!(:forward)
     end
+    @turn_me += 1
+  end
+
+  def free_space_into_direction_of_bomb?(warrior)
+    locate(:empty, warrior) == direction_of_bomb(warrior)
+  end
+
+  def hostage_in_bombing_zone?(warrior)
+    distances = []
+    warrior.listen.each_with_index do |space, index|
+      distances << warrior.distance_of(space) if space.ticking?
+    end
+    distances.first < 3 rescue false
   end
 
   def locate_second_prioritized_enemies(warrior)
@@ -54,30 +81,6 @@ class Player
   def avoid_stairs(warrior)
     [:forward, :left, :right, :backward].find do |direction|
       return direction if warrior.feel(direction).empty? && !warrior.feel(direction).stairs?
-    end
-  end
-
-  def count_enemies(warrior)
-    count = 0
-    [:forward, :left, :right, :backward].map do |direction|
-      count += 1 if warrior.feel(direction).enemy?
-    end
-    count
-  end
-
-  def present?(who = :enemy, warrior)
-    [:forward, :left, :right, :backward].any? do |direction|
-      who == :enemy ? warrior.feel(direction).enemy? : warrior.feel(direction).captive?
-    end
-  end
-
-  def locate(who = :enemy, warrior)
-    [:forward, :left, :right, :backward].select do |direction|
-      if who == :enemy
-        return direction if warrior.feel(direction).enemy?
-      else
-        return direction if warrior.feel(direction).captive?
-      end
     end
   end
 end
