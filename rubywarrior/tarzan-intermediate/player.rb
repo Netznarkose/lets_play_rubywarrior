@@ -2,85 +2,54 @@ require 'pry-byebug'
 require 'player_helper'
 include PlayerHelper
 class Player
-  def initialize
-    @turn_me = 0
-  end
+
   def play_turn(warrior)
-    case @turn_me
-    when 0
-      warrior.bind!(:left)
-    when 1
-      warrior.bind!(:right)
-    when 2, 3
-      warrior.detonate!(:forward)
-    when 4, 5, 6, 7, 8
+    if ticking?(warrior)
+      hostage_liberation_mode(warrior)
+    else
+      if count_enemies(warrior) > 1
+        warrior.bind!(locate(:enemy, warrior))
+      elsif !present?(:enemy, warrior) && warrior.health < 20
+        warrior.rest!
+      elsif present?(:enemy, warrior)
+        warrior.attack!(locate(:enemy, warrior))
+      elsif present?(:captive, warrior)
+        warrior.rescue!(locate(:captive, warrior))
+      elsif warrior.listen.empty?
+        warrior.walk!(warrior.direction_of_stairs)
+      elsif warrior.feel.stairs?
+        warrior.walk!(avoid_stairs(warrior))
+      else
+        warrior.walk!(warrior.direction_of(warrior.listen.first))
+      end
+    end
+  end
+  def hostage_liberation_mode(warrior)
+    if count_enemies(warrior) > 1
+      warrior.bind!(locate_second_prioritized_enemies(warrior))
+    elsif locate(:hostage, warrior)
+      warrior.rescue!(locate(:hostage, warrior))
+    elsif !present?(:enemy, warrior) && warrior.health < 10 && warrior.look.any?(&:enemy?)
       warrior.rest!
-    when 9
-      warrior.walk!(:forward)
-    when 10
-      warrior.bind!(:left)
-    when 11
-      warrior.bind!(:right)
-    when 12
-      warrior.attack!(:forward)
-    # when 7, 8
-    #   warrior.detonate!(:left)
-    # when 9
-    #   warrior.walk!(:left)
-    # when 10
-    #   warrior.attack!(:forward)
-    # when 11
-    #   warrior.walk!(:forward)
-    # when 12
-    #   warrior.rescue!(:forward)
-    end
-    @turn_me += 1
-  end
-
-  def free_space_into_direction_of_bomb?(warrior)
-    locate(:empty, warrior) == direction_of_bomb(warrior)
-  end
-
-  def hostage_in_bombing_zone?(warrior)
-    distances = []
-    warrior.listen.each_with_index do |space, index|
-      distances << warrior.distance_of(space) if space.ticking?
-    end
-    distances.first < 3 rescue false
-  end
-
-  def locate_second_prioritized_enemies(warrior)
-    [:forward, :left, :right, :backward].select do |direction|
-      return direction if warrior.feel(direction).enemy? && direction != direction_of_bomb(warrior)
+    elsif !present?(:enemy, warrior) && warrior.health < 4
+      warrior.rest!
+    elsif free_space_into_direction_of_hostage?(warrior)
+      warrior.walk!(direction_of_hostage(warrior))
+    elsif hostage_in_detonation_zone?(warrior)
+      warrior.attack!(direction_of_hostage(warrior))
+    else
+      smart_use_of_weappons(warrior)
     end
   end
 
-  def only_attack_enemies_which_block_rescues(warrior)
-    if ticking?(warrior)
-      locate(:enemy, warrior) == direction_of_bomb(warrior)
-    end
+  def no_enemy_next_to_me_but_enemy_on_next_field_and_health_under_ten
   end
 
-  def only_rescue_captives_with_bombs(warrior)
-    if ticking?(warrior)
-      locate(:captive, warrior) == direction_of_bomb(warrior)
-    end
-  end
-
-  def direction_of_bomb(warrior)
-    warrior.listen.each_with_index do |space, index|
-      @platz = index if space.ticking?
-    end
-    warrior.direction_of(warrior.listen[@platz])
-  end
-
-  def ticking?(warrior)
-    warrior.listen.any?(&:ticking?)
-  end
-
-  def avoid_stairs(warrior)
-    [:forward, :left, :right, :backward].find do |direction|
-      return direction if warrior.feel(direction).empty? && !warrior.feel(direction).stairs?
+  def smart_use_of_weappons(warrior)
+    if hostage_in_detonation_zone?(warrior) || warrior.health < 6
+      warrior.attack!(direction_of_hostage(warrior))
+    else
+      warrior.detonate!(direction_of_hostage(warrior))
     end
   end
 end
